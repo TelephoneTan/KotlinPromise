@@ -158,15 +158,15 @@ private fun <S, R, O> Job?.finallyAll(
 fun <T> CoroutineScope.promise(semaphore: PromiseSemaphore? = null, job: KPromiseJob<T>.() -> Unit) =
     this.coroutineContext.job.promise(semaphore = semaphore, job = job)
 
-fun CoroutineScope.promise(semaphore: PromiseSemaphore? = null, job: KPromiseJob<Unit>.() -> Unit) =
+fun CoroutineScope.process(semaphore: PromiseSemaphore? = null, job: KPromiseJob<Unit>.() -> Unit) =
     promise<Unit>(semaphore = semaphore, job = job)
 
 fun <T> CoroutineScope.resolved(value: T) = this.coroutineContext.job.resolved(value)
 fun CoroutineScope.resolved() = resolved(Unit)
 fun <T> CoroutineScope.rejected(reason: Throwable?) = this.coroutineContext.job.rejected<T>(reason)
-fun CoroutineScope.rejected(reason: Throwable?) = rejected<Unit>(reason)
+fun CoroutineScope.failed(reason: Throwable?) = rejected<Unit>(reason)
 fun <T> CoroutineScope.cancelled() = this.coroutineContext.job.cancelled<T>()
-fun CoroutineScope.cancelled() = cancelled<Unit>()
+fun CoroutineScope.terminated() = cancelled<Unit>()
 
 fun <S, R, O> CoroutineScope.thenAll(
     requiredPromiseList: List<Promise<R>>,
@@ -417,15 +417,15 @@ class KPromiseJob<S>(
     fun <T> promise(semaphore: PromiseSemaphore? = null, job: KPromiseJob<T>.() -> Unit) =
         parentJob.promise(semaphore = semaphore, job = job)
 
-    fun promise(semaphore: PromiseSemaphore? = null, job: KPromiseJob<Unit>.() -> Unit) =
+    fun process(semaphore: PromiseSemaphore? = null, job: KPromiseJob<Unit>.() -> Unit) =
         promise<Unit>(semaphore = semaphore, job = job)
 
     fun <T> resolved(value: T) = parentJob.resolved(value)
     fun resolved() = resolved(Unit)
     fun <T> rejected(reason: Throwable?) = parentJob.rejected<T>(reason)
-    fun rejected(reason: Throwable?) = rejected<Unit>(reason)
+    fun failed(reason: Throwable?) = rejected<Unit>(reason)
     fun <T> cancelled() = parentJob.cancelled<T>()
-    fun cancelled() = cancelled<Unit>()
+    fun terminated() = cancelled<Unit>()
     fun <S, R, O> thenAll(
         requiredPromiseList: List<Promise<R>>,
         optionalPromiseList: List<Promise<O>>,
@@ -673,7 +673,7 @@ fun <S, T> Promise<T>.then(
     }
 }
 
-fun <T> Promise<T>.then(semaphore: PromiseSemaphore? = null, onFulfilled: KPromiseOnFulfilled<T>.() -> Unit) =
+fun <T> Promise<T>.next(semaphore: PromiseSemaphore? = null, onFulfilled: KPromiseOnFulfilled<T>.() -> Unit) =
     then<Unit, T>(semaphore = semaphore, onFulfilled = onFulfilled)
 
 fun <S, T> Promise<T>.catch(
@@ -685,7 +685,7 @@ fun <S, T> Promise<T>.catch(
     }
 }
 
-fun <T> Promise<T>.catch(semaphore: PromiseSemaphore? = null, onRejected: KPromiseOnRejected.() -> Unit) =
+fun <T> Promise<T>.error(semaphore: PromiseSemaphore? = null, onRejected: KPromiseOnRejected.() -> Unit) =
     catch<Unit, T>(semaphore = semaphore, onRejected = onRejected)
 
 
