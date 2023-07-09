@@ -1,17 +1,27 @@
 import kotlinx.coroutines.GlobalScope
 import org.junit.jupiter.api.Test
+import kotlin.time.Duration.Companion.seconds
 
 class Test {
     @Test
     fun test() {
         GlobalScope.process {
             println("please wait...")
-            Thread.sleep(5000)
-            println("hello, world")
-            resolve()
+            delay(4.seconds).next {
+                println("hello, world")
+                resolve()
+            }
+        }.Await()
+        GlobalScope.delay(1.seconds).then<Unit, Unit> {
+            return@then delay(1.seconds)
         }.Await()
         println("finished")
-        Thread.sleep(5000)
+        GlobalScope.delay(1.seconds).then<Unit, Unit> {
+            return@then delay(1.seconds)
+        }.Await()
         println("end")
+        GlobalScope.delay(1.seconds).then<Unit, Unit> {
+            return@then delay(1.seconds)
+        }.Await()
     }
 }
