@@ -4,11 +4,38 @@ import java.util.*
 
 plugins {
     kotlin("jvm") version "1.8.21"
-    application
+    `java-library`
+    `maven-publish`
 }
 
 group = "org.example"
 version = "1.0-SNAPSHOT"
+
+publishing {
+    repositories {
+        val p = Properties().apply {
+            val ins = FileInputStream("./local.gradle.properties")
+            load(ins)
+            ins.close()
+        }
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/TelephoneTan/KotlinPromise")
+            credentials {
+                username = p.getProperty("gpr_github_user") as String
+                password = p.getProperty("gpr_github_key") as String
+            }
+        }
+    }
+    publications {
+        create<MavenPublication>("kp") {
+            groupId = "pub.telephone"
+            artifactId = "kotlin-promise"
+            version = "0.1.0"
+            from(components["java"])
+        }
+    }
+}
 
 repositories {
     val p = Properties().apply {
@@ -43,8 +70,4 @@ tasks.withType<KotlinCompile> {
 
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
-}
-
-application {
-    mainClass.set("MainKt")
 }
