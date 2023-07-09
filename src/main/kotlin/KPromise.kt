@@ -1,4 +1,7 @@
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.DisposableHandle
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.Runnable
 import pub.telephone.javapromise.async.promise.*
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration
@@ -156,16 +159,18 @@ private fun <S, R, O> Job?.finallyAll(
 }
 
 fun <T> CoroutineScope.promise(semaphore: PromiseSemaphore? = null, job: KPromiseJob<T>.() -> Unit) =
-    this.coroutineContext.job.promise(semaphore = semaphore, job = job)
+    this.coroutineContext[Job].promise(semaphore = semaphore, job = job)
 
-fun CoroutineScope.process(semaphore: PromiseSemaphore? = null, job: KPromiseJob<Unit>.() -> Unit) =
-    promise<Unit>(semaphore = semaphore, job = job)
+fun CoroutineScope.process(semaphore: PromiseSemaphore? = null, job: KPromiseJob.KPromiseProcedure.() -> Unit) =
+    promise(semaphore = semaphore) {
+        KPromiseJob.KPromiseProcedure(this).job()
+    }
 
-fun <T> CoroutineScope.resolved(value: T) = this.coroutineContext.job.resolved(value)
+fun <T> CoroutineScope.resolved(value: T) = this.coroutineContext[Job].resolved(value)
 fun CoroutineScope.resolved() = resolved(Unit)
-fun <T> CoroutineScope.rejected(reason: Throwable?) = this.coroutineContext.job.rejected<T>(reason)
+fun <T> CoroutineScope.rejected(reason: Throwable?) = this.coroutineContext[Job].rejected<T>(reason)
 fun CoroutineScope.failed(reason: Throwable?) = rejected<Unit>(reason)
-fun <T> CoroutineScope.cancelled() = this.coroutineContext.job.cancelled<T>()
+fun <T> CoroutineScope.cancelled() = this.coroutineContext[Job].cancelled<T>()
 fun CoroutineScope.terminated() = cancelled<Unit>()
 
 fun <S, R, O> CoroutineScope.thenAll(
@@ -173,7 +178,7 @@ fun <S, R, O> CoroutineScope.thenAll(
     optionalPromiseList: List<Promise<O>>,
     semaphore: PromiseSemaphore? = null,
     onFulfilled: KPromiseCompoundOnFulfilled<R, O>.() -> Any?
-) = this.coroutineContext.job.thenAll<S, R, O>(
+) = this.coroutineContext[Job].thenAll<S, R, O>(
     semaphore = semaphore,
     requiredPromiseList = requiredPromiseList,
     optionalPromiseList = optionalPromiseList,
@@ -239,7 +244,7 @@ fun <S, R, O> CoroutineScope.catchAll(
     optionalPromiseList: List<Promise<O>>,
     semaphore: PromiseSemaphore? = null,
     onRejected: KPromiseOnRejected.() -> Any?
-) = this.coroutineContext.job.catchAll<S, R, O>(
+) = this.coroutineContext[Job].catchAll<S, R, O>(
     semaphore = semaphore,
     requiredPromiseList = requiredPromiseList,
     optionalPromiseList = optionalPromiseList,
@@ -305,7 +310,7 @@ fun <R, O> CoroutineScope.cancelAll(
     optionalPromiseArray: Array<Promise<O>>,
     semaphore: PromiseSemaphore? = null,
     onCancelled: () -> Unit
-) = this.coroutineContext.job.cancelAll<Unit, R, O>(
+) = this.coroutineContext[Job].cancelAll<Unit, R, O>(
     semaphore = semaphore,
     requiredPromiseList = requiredPromiseArray.asList(),
     optionalPromiseList = optionalPromiseArray.asList(),
@@ -344,7 +349,7 @@ fun <R, O> CoroutineScope.finallyAll(
     optionalPromiseList: List<Promise<O>>,
     semaphore: PromiseSemaphore? = null,
     onSettled: KPromiseOnSettled.() -> Promise<*>?
-) = this.coroutineContext.job.finallyAll<Unit, R, O>(
+) = this.coroutineContext[Job].finallyAll<Unit, R, O>(
     semaphore = semaphore,
     requiredPromiseList = requiredPromiseList,
     optionalPromiseList = optionalPromiseList,
@@ -405,20 +410,28 @@ fun <O> CoroutineScope.finallyAll(
     onSettled = wrapUnitOnSettled(onSettled)
 )
 
-class KPromiseJob<S>(
+open class KPromiseJob<S>(
     private val resolver: PromiseResolver<S>,
     private val rejector: PromiseRejector,
     private val parentJob: Job?,
-    cancelledBroadcast: PromiseCancelledBroadcast,
+    private val cancelledBroadcast: PromiseCancelledBroadcast,
 ) : KPromiseCancelledBroadcast(cancelledBroadcast) {
+    class KPromiseProcedure(
+        job: KPromiseJob<Unit>,
+    ) : KPromiseJob<Unit>(job.resolver, job.rejector, job.parentJob, job.cancelledBroadcast) {
+        fun resolve() = resolve(Unit)
+    }
+
     fun resolve(value: S) = resolver.ResolveValue(value)
     fun resolve(promise: Promise<S>) = resolver.ResolvePromise(promise)
     fun reject(reason: Throwable?) = rejector.Reject(reason)
     fun <T> promise(semaphore: PromiseSemaphore? = null, job: KPromiseJob<T>.() -> Unit) =
         parentJob.promise(semaphore = semaphore, job = job)
 
-    fun process(semaphore: PromiseSemaphore? = null, job: KPromiseJob<Unit>.() -> Unit) =
-        promise<Unit>(semaphore = semaphore, job = job)
+    fun process(semaphore: PromiseSemaphore? = null, job: KPromiseProcedure.() -> Unit) =
+        promise(semaphore = semaphore) {
+            KPromiseProcedure(this).job()
+        }
 
     fun <T> resolved(value: T) = parentJob.resolved(value)
     fun resolved() = resolved(Unit)
