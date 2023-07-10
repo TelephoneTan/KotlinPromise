@@ -24,4 +24,17 @@ class Test {
             return@then delay(1.seconds)
         }.Await()
     }
+
+    @Test
+    fun testOnceTask() {
+        GlobalScope.onceProcess {
+            println("origin job")
+            resolve()
+        }.process {
+            println("new job")
+            resolve()
+        }.finally {
+            println("end")
+        }.Await()
+    }
 }
