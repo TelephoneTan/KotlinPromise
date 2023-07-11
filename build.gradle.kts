@@ -55,8 +55,8 @@ repositories {
 }
 
 dependencies {
-    implementation("pub.telephone:java-promise:2.1.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.2")
+    api("pub.telephone:java-promise:2.1.0")
+    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.2")
     testImplementation(kotlin("test"))
 }
 
