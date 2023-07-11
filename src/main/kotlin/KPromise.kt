@@ -353,7 +353,7 @@ class KPromiseOnSettled(
     cancelledBroadcast: PromiseCancelledBroadcast,
 ) : KPromiseScope(cancelledBroadcast)
 
-private fun Job?.toBroadcast() = this?.let { parentJob ->
+fun Job?.ToBroadcast(): PromiseCancelledBroadcast? = this?.let { parentJob ->
     object : PromiseCancelledBroadcast() {
         override fun Listen(r: Runnable?): Any? {
             return r?.let { runnable ->
@@ -624,7 +624,7 @@ private fun PromiseCancelledBroadcast?.delay(d: Duration) = Async.Delay(this, d.
 fun <T> CoroutineScope.onceTask(
     semaphore: PromiseSemaphore? = null,
     job: (KPromiseJob<T>.() -> Unit)? = null
-) = coroutineContext[Job].toBroadcast().onceTask(
+) = coroutineContext[Job].ToBroadcast().onceTask(
     semaphore = semaphore,
     job = job,
 )
@@ -641,7 +641,7 @@ fun CoroutineScope.onceProcess(
 fun <T> CoroutineScope.sharedTask(
     semaphore: PromiseSemaphore? = null,
     job: (KPromiseJob<T>.() -> Unit)? = null
-) = coroutineContext[Job].toBroadcast().sharedTask(
+) = coroutineContext[Job].ToBroadcast().sharedTask(
     semaphore = semaphore,
     job = job,
 )
@@ -660,7 +660,7 @@ fun CoroutineScope.timedTask(
     semaphore: PromiseSemaphore? = null,
     lifeTimes: Int? = null,
     job: KPromiseJob<Boolean>.() -> Unit
-) = coroutineContext[Job].toBroadcast().timedTask(
+) = coroutineContext[Job].ToBroadcast().timedTask(
     interval = interval,
     semaphore = semaphore,
     lifeTimes = lifeTimes,
@@ -670,7 +670,7 @@ fun CoroutineScope.timedTask(
 fun <T> CoroutineScope.versionedTask(
     semaphore: PromiseSemaphore? = null,
     job: (KPromiseJob<T>.() -> Unit)? = null
-) = coroutineContext[Job].toBroadcast().versionedTask(
+) = coroutineContext[Job].ToBroadcast().versionedTask(
     semaphore = semaphore,
     job = job,
 )
@@ -685,18 +685,18 @@ fun CoroutineScope.versionedProcess(
 })
 
 fun <T> CoroutineScope.promise(semaphore: PromiseSemaphore? = null, job: KPromiseJob<T>.() -> Unit) =
-    coroutineContext[Job].toBroadcast().promise(semaphore = semaphore, job = job)
+    coroutineContext[Job].ToBroadcast().promise(semaphore = semaphore, job = job)
 
 fun CoroutineScope.process(semaphore: PromiseSemaphore? = null, job: KPromiseJob.KPromiseProcedure.() -> Unit) =
     promise(semaphore = semaphore) {
         KPromiseJob.KPromiseProcedure(this).job()
     }
 
-fun <T> CoroutineScope.resolved(value: T) = coroutineContext[Job].toBroadcast().resolved(value)
+fun <T> CoroutineScope.resolved(value: T) = coroutineContext[Job].ToBroadcast().resolved(value)
 fun CoroutineScope.resolved() = resolved(Unit)
-fun <T> CoroutineScope.rejected(reason: Throwable?) = coroutineContext[Job].toBroadcast().rejected<T>(reason)
+fun <T> CoroutineScope.rejected(reason: Throwable?) = coroutineContext[Job].ToBroadcast().rejected<T>(reason)
 fun CoroutineScope.failed(reason: Throwable?) = rejected<Unit>(reason)
-fun <T> CoroutineScope.cancelled() = coroutineContext[Job].toBroadcast().cancelled<T>()
+fun <T> CoroutineScope.cancelled() = coroutineContext[Job].ToBroadcast().cancelled<T>()
 fun CoroutineScope.terminated() = cancelled<Unit>()
 
 fun <S, R, O> CoroutineScope.thenAll(
@@ -704,7 +704,7 @@ fun <S, R, O> CoroutineScope.thenAll(
     optionalPromiseList: List<Promise<O>>,
     semaphore: PromiseSemaphore? = null,
     onFulfilled: KPromiseCompoundOnFulfilled<R, O>.() -> Any?
-) = coroutineContext[Job].toBroadcast().thenAll<S, R, O>(
+) = coroutineContext[Job].ToBroadcast().thenAll<S, R, O>(
     semaphore = semaphore,
     requiredPromiseList = requiredPromiseList,
     optionalPromiseList = optionalPromiseList,
@@ -770,7 +770,7 @@ fun <S, R, O> CoroutineScope.catchAll(
     optionalPromiseList: List<Promise<O>>,
     semaphore: PromiseSemaphore? = null,
     onRejected: KPromiseOnRejected.() -> Any?
-) = coroutineContext[Job].toBroadcast().catchAll<S, R, O>(
+) = coroutineContext[Job].ToBroadcast().catchAll<S, R, O>(
     semaphore = semaphore,
     requiredPromiseList = requiredPromiseList,
     optionalPromiseList = optionalPromiseList,
@@ -836,7 +836,7 @@ fun <R, O> CoroutineScope.cancelAll(
     optionalPromiseArray: Array<Promise<O>>,
     semaphore: PromiseSemaphore? = null,
     onCancelled: () -> Unit
-) = coroutineContext[Job].toBroadcast().cancelAll<Unit, R, O>(
+) = coroutineContext[Job].ToBroadcast().cancelAll<Unit, R, O>(
     semaphore = semaphore,
     requiredPromiseList = requiredPromiseArray.asList(),
     optionalPromiseList = optionalPromiseArray.asList(),
@@ -875,7 +875,7 @@ fun <R, O> CoroutineScope.finallyAll(
     optionalPromiseList: List<Promise<O>>,
     semaphore: PromiseSemaphore? = null,
     onSettled: KPromiseOnSettled.() -> Promise<*>?
-) = coroutineContext[Job].toBroadcast().finallyAll<Unit, R, O>(
+) = coroutineContext[Job].ToBroadcast().finallyAll<Unit, R, O>(
     semaphore = semaphore,
     requiredPromiseList = requiredPromiseList,
     optionalPromiseList = optionalPromiseList,
@@ -936,7 +936,7 @@ fun <O> CoroutineScope.finallyAll(
     onSettled = wrapUnitOnSettled(onSettled)
 )
 
-fun CoroutineScope.delay(d: Duration) = coroutineContext[Job].toBroadcast().delay(d)
+fun CoroutineScope.delay(d: Duration) = coroutineContext[Job].ToBroadcast().delay(d)
 
 open class KPromiseJob<S>(
     private val resolver: PromiseResolver<S>,
