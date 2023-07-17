@@ -13,15 +13,15 @@ import kotlin.time.Duration
 import kotlin.time.toJavaDuration
 import kotlin.time.toKotlinDuration
 
-open class KPromiseScope(
-    val CancelledBroadcast: PromiseCancelledBroadcast,
+open class KPromiseScope<S>(
+    val State: PromiseState<S>,
 ) {
-    val isActive get() = CancelledBroadcast.IsActive.get()
+    val isActive get() = State.CancelledBroadcast.IsActive.get()
 
     fun <T> onceTask(
         semaphore: PromiseSemaphore? = null,
         job: (KPromiseJob<T>.() -> Unit)? = null
-    ) = CancelledBroadcast.onceTask(
+    ) = State.ScopeCancelledBroadcast.onceTask(
         semaphore = semaphore,
         job = job,
     )
@@ -38,7 +38,7 @@ open class KPromiseScope(
     fun <T> sharedTask(
         semaphore: PromiseSemaphore? = null,
         job: (KPromiseJob<T>.() -> Unit)? = null
-    ) = CancelledBroadcast.sharedTask(
+    ) = State.ScopeCancelledBroadcast.sharedTask(
         semaphore = semaphore,
         job = job,
     )
@@ -57,7 +57,7 @@ open class KPromiseScope(
         semaphore: PromiseSemaphore? = null,
         lifeTimes: Int? = null,
         job: KPromiseJob<Boolean>.() -> Unit
-    ) = CancelledBroadcast.timedTask(
+    ) = State.ScopeCancelledBroadcast.timedTask(
         interval = interval,
         semaphore = semaphore,
         lifeTimes = lifeTimes,
@@ -67,7 +67,7 @@ open class KPromiseScope(
     fun <T> versionedTask(
         semaphore: PromiseSemaphore? = null,
         job: (KPromiseJob<T>.() -> Unit)? = null
-    ) = CancelledBroadcast.versionedTask(
+    ) = State.ScopeCancelledBroadcast.versionedTask(
         semaphore = semaphore,
         job = job,
     )
@@ -82,26 +82,26 @@ open class KPromiseScope(
     })
 
     fun <T> promise(semaphore: PromiseSemaphore? = null, job: KPromiseJob<T>.() -> Unit) =
-        CancelledBroadcast.promise(semaphore = semaphore, job = job)
+        State.ScopeCancelledBroadcast.promise(semaphore = semaphore, job = job)
 
     fun process(semaphore: PromiseSemaphore? = null, job: KPromiseJob.KPromiseProcedure.() -> Unit) =
         promise(semaphore = semaphore) {
             KPromiseJob.KPromiseProcedure(this).job()
         }
 
-    fun <T> resolved(value: T) = CancelledBroadcast.resolved(value)
+    fun <T> resolved(value: T) = State.ScopeCancelledBroadcast.resolved(value)
     fun resolved() = resolved(Unit)
-    fun <T> rejected(reason: Throwable?) = CancelledBroadcast.rejected<T>(reason)
+    fun <T> rejected(reason: Throwable?) = State.ScopeCancelledBroadcast.rejected<T>(reason)
     fun failed(reason: Throwable?) = rejected<Unit>(reason)
-    fun <T> cancelled() = CancelledBroadcast.cancelled<T>()
+    fun <T> cancelled() = State.ScopeCancelledBroadcast.cancelled<T>()
     fun terminated() = cancelled<Unit>()
-    fun delay(d: Duration) = CancelledBroadcast.delay(d)
+    fun delay(d: Duration) = State.ScopeCancelledBroadcast.delay(d)
     fun <S, R, O> thenAll(
         requiredPromiseList: List<Promise<R>>,
         optionalPromiseList: List<Promise<O>>,
         semaphore: PromiseSemaphore? = null,
-        onFulfilled: KPromiseCompoundOnFulfilled<R, O>.() -> Any?
-    ) = CancelledBroadcast.thenAll<S, R, O>(
+        onFulfilled: KPromiseCompoundOnFulfilled<S, R, O>.() -> Any?
+    ) = State.ScopeCancelledBroadcast.thenAll(
         semaphore = semaphore,
         requiredPromiseList = requiredPromiseList,
         optionalPromiseList = optionalPromiseList,
@@ -112,8 +112,8 @@ open class KPromiseScope(
         requiredPromiseArray: Array<Promise<R>>,
         optionalPromiseArray: Array<Promise<O>>,
         semaphore: PromiseSemaphore? = null,
-        onFulfilled: KPromiseCompoundOnFulfilled<R, O>.() -> Unit
-    ) = thenAll<Unit, R, O>(
+        onFulfilled: KPromiseCompoundOnFulfilled<Unit, R, O>.() -> Unit
+    ) = thenAll(
         semaphore = semaphore,
         requiredPromiseList = requiredPromiseArray.asList(),
         optionalPromiseList = optionalPromiseArray.asList(),
@@ -123,8 +123,8 @@ open class KPromiseScope(
     fun <S, R> thenAll(
         requiredPromiseList: List<Promise<R>>,
         semaphore: PromiseSemaphore? = null,
-        onFulfilled: KPromiseCompoundOnFulfilled<R, Unit>.() -> Any?
-    ) = thenAll<S, R, Unit>(
+        onFulfilled: KPromiseCompoundOnFulfilled<S, R, Unit>.() -> Any?
+    ) = thenAll(
         semaphore = semaphore,
         requiredPromiseList = requiredPromiseList,
         optionalPromiseList = emptyList(),
@@ -134,8 +134,8 @@ open class KPromiseScope(
     fun <R> thenAll(
         requiredPromiseArray: Array<Promise<R>>,
         semaphore: PromiseSemaphore? = null,
-        onFulfilled: KPromiseCompoundOnFulfilled<R, Unit>.() -> Unit
-    ) = thenAll<Unit, R>(
+        onFulfilled: KPromiseCompoundOnFulfilled<Unit, R, Unit>.() -> Unit
+    ) = thenAll(
         semaphore = semaphore,
         requiredPromiseList = requiredPromiseArray.asList(),
         onFulfilled = onFulfilled
@@ -144,8 +144,8 @@ open class KPromiseScope(
     fun <S, O> thenAll(
         semaphore: PromiseSemaphore? = null,
         optionalPromiseList: List<Promise<O>>,
-        onFulfilled: KPromiseCompoundOnFulfilled<Unit, O>.() -> Any?
-    ) = thenAll<S, Unit, O>(
+        onFulfilled: KPromiseCompoundOnFulfilled<S, Unit, O>.() -> Any?
+    ) = thenAll(
         semaphore = semaphore,
         requiredPromiseList = emptyList(),
         optionalPromiseList = optionalPromiseList,
@@ -155,8 +155,8 @@ open class KPromiseScope(
     fun <O> thenAll(
         semaphore: PromiseSemaphore? = null,
         optionalPromiseArray: Array<Promise<O>>,
-        onFulfilled: KPromiseCompoundOnFulfilled<Unit, O>.() -> Unit
-    ) = thenAll<Unit, O>(
+        onFulfilled: KPromiseCompoundOnFulfilled<Unit, Unit, O>.() -> Unit
+    ) = thenAll(
         semaphore = semaphore,
         optionalPromiseList = optionalPromiseArray.asList(),
         onFulfilled = onFulfilled
@@ -166,8 +166,8 @@ open class KPromiseScope(
         requiredPromiseList: List<Promise<R>>,
         optionalPromiseList: List<Promise<O>>,
         semaphore: PromiseSemaphore? = null,
-        onRejected: KPromiseOnRejected.() -> Any?
-    ) = CancelledBroadcast.catchAll<S, R, O>(
+        onRejected: KPromiseOnRejected<S>.() -> Any?
+    ) = State.ScopeCancelledBroadcast.catchAll(
         semaphore = semaphore,
         requiredPromiseList = requiredPromiseList,
         optionalPromiseList = optionalPromiseList,
@@ -178,8 +178,8 @@ open class KPromiseScope(
         requiredPromiseArray: Array<Promise<R>>,
         optionalPromiseArray: Array<Promise<O>>,
         semaphore: PromiseSemaphore? = null,
-        onRejected: KPromiseOnRejected.() -> Unit
-    ) = catchAll<Unit, R, O>(
+        onRejected: KPromiseOnRejected<Unit>.() -> Unit
+    ) = catchAll(
         semaphore = semaphore,
         requiredPromiseList = requiredPromiseArray.asList(),
         optionalPromiseList = optionalPromiseArray.asList(),
@@ -189,7 +189,7 @@ open class KPromiseScope(
     fun <S, R> catchAll(
         requiredPromiseList: List<Promise<R>>,
         semaphore: PromiseSemaphore? = null,
-        onRejected: KPromiseOnRejected.() -> Any?
+        onRejected: KPromiseOnRejected<S>.() -> Any?
     ) = catchAll<S, R, Unit>(
         semaphore = semaphore,
         requiredPromiseList = requiredPromiseList,
@@ -200,8 +200,8 @@ open class KPromiseScope(
     fun <R> catchAll(
         requiredPromiseArray: Array<Promise<R>>,
         semaphore: PromiseSemaphore? = null,
-        onRejected: KPromiseOnRejected.() -> Unit
-    ) = catchAll<Unit, R>(
+        onRejected: KPromiseOnRejected<Unit>.() -> Unit
+    ) = catchAll(
         semaphore = semaphore,
         requiredPromiseList = requiredPromiseArray.asList(),
         onRejected = onRejected
@@ -210,7 +210,7 @@ open class KPromiseScope(
     fun <S, O> catchAll(
         semaphore: PromiseSemaphore? = null,
         optionalPromiseList: List<Promise<O>>,
-        onRejected: KPromiseOnRejected.() -> Any?
+        onRejected: KPromiseOnRejected<S>.() -> Any?
     ) = catchAll<S, Unit, O>(
         semaphore = semaphore,
         requiredPromiseList = emptyList(),
@@ -221,8 +221,8 @@ open class KPromiseScope(
     fun <O> catchAll(
         semaphore: PromiseSemaphore? = null,
         optionalPromiseArray: Array<Promise<O>>,
-        onRejected: KPromiseOnRejected.() -> Unit
-    ) = catchAll<Unit, O>(
+        onRejected: KPromiseOnRejected<Unit>.() -> Unit
+    ) = catchAll(
         semaphore = semaphore,
         optionalPromiseList = optionalPromiseArray.asList(),
         onRejected = onRejected
@@ -233,7 +233,7 @@ open class KPromiseScope(
         optionalPromiseArray: Array<Promise<O>>,
         semaphore: PromiseSemaphore? = null,
         onCancelled: () -> Unit
-    ) = CancelledBroadcast.cancelAll<Unit, R, O>(
+    ) = State.ScopeCancelledBroadcast.cancelAll<Unit, R, O>(
         semaphore = semaphore,
         requiredPromiseList = requiredPromiseArray.asList(),
         optionalPromiseList = optionalPromiseArray.asList(),
@@ -272,7 +272,7 @@ open class KPromiseScope(
         optionalPromiseList: List<Promise<O>>,
         semaphore: PromiseSemaphore? = null,
         onSettled: KPromiseOnSettled.() -> Promise<*>?
-    ) = CancelledBroadcast.finallyAll<Unit, R, O>(
+    ) = State.ScopeCancelledBroadcast.finallyAll<Unit, R, O>(
         semaphore = semaphore,
         requiredPromiseList = requiredPromiseList,
         optionalPromiseList = optionalPromiseList,
@@ -334,24 +334,24 @@ open class KPromiseScope(
     )
 }
 
-class KPromiseOnFulfilled<T>(
+class KPromiseOnFulfilled<S, T>(
     val value: T,
-    cancelledBroadcast: PromiseCancelledBroadcast,
-) : KPromiseScope(cancelledBroadcast)
+    state: PromiseState<S>,
+) : KPromiseScope<S>(state)
 
-class KPromiseCompoundOnFulfilled<R, O>(
+class KPromiseCompoundOnFulfilled<S, R, O>(
     val value: PromiseCompoundResult<R, O>,
-    cancelledBroadcast: PromiseCancelledBroadcast,
-) : KPromiseScope(cancelledBroadcast)
+    state: PromiseState<S>,
+) : KPromiseScope<S>(state)
 
-class KPromiseOnRejected(
+class KPromiseOnRejected<S>(
     val reason: Throwable,
-    cancelledBroadcast: PromiseCancelledBroadcast,
-) : KPromiseScope(cancelledBroadcast)
+    state: PromiseState<S>,
+) : KPromiseScope<S>(state)
 
 class KPromiseOnSettled(
-    cancelledBroadcast: PromiseCancelledBroadcast,
-) : KPromiseScope(cancelledBroadcast)
+    state: PromiseState<Any?>,
+) : KPromiseScope<Any?>(state)
 
 fun Job?.ToBroadcast(): PromiseCancelledBroadcast? = this?.let { parentJob ->
     object : PromiseCancelledBroadcast() {
@@ -370,11 +370,11 @@ fun Job?.ToBroadcast(): PromiseCancelledBroadcast? = this?.let { parentJob ->
 }
 
 private fun <T> (KPromiseJob<T>.() -> Unit).toPromiseJob() =
-    PromiseCancellableJob { resolver, rejector, cancelledBroadcast ->
+    PromiseStatefulJob { resolver, rejector, state ->
         KPromiseJob(
             resolver = resolver,
             rejector = rejector,
-            cancelledBroadcast = cancelledBroadcast,
+            state = state
         ).this()
     }
 
@@ -540,8 +540,8 @@ private fun <T> PromiseCancelledBroadcast?.cancelled(): Promise<T> {
     )
 }
 
-private fun <R, O, S> (KPromiseCompoundOnFulfilled<R, O>.() -> Any?).toCompoundFulfilledListener() =
-    PromiseCancellableCompoundFulfilledListener<R, O, S> { value, cancelledBroadcast ->
+private fun <R, O, S> (KPromiseCompoundOnFulfilled<S, R, O>.() -> Any?).toCompoundFulfilledListener() =
+    PromiseStatefulCompoundFulfilledListener { value, cancelledBroadcast ->
         KPromiseCompoundOnFulfilled(value, cancelledBroadcast).this()
     }
 
@@ -549,7 +549,7 @@ private fun <S, R, O> PromiseCancelledBroadcast?.thenAll(
     semaphore: PromiseSemaphore? = null,
     requiredPromiseList: List<Promise<R>>? = null,
     optionalPromiseList: List<Promise<O>>? = null,
-    onFulfilled: KPromiseCompoundOnFulfilled<R, O>.() -> Any?
+    onFulfilled: KPromiseCompoundOnFulfilled<S, R, O>.() -> Any?
 ): Promise<S> {
     return Promise.ThenAll(
         this,
@@ -560,8 +560,8 @@ private fun <S, R, O> PromiseCancelledBroadcast?.thenAll(
     )
 }
 
-private fun <S> (KPromiseOnRejected.() -> Any?).toRejectedListener() =
-    PromiseCancellableRejectedListener<S> { reason, cancelledBroadcast ->
+private fun <S> (KPromiseOnRejected<S>.() -> Any?).toRejectedListener() =
+    PromiseStatefulRejectedListener { reason, cancelledBroadcast ->
         KPromiseOnRejected(reason, cancelledBroadcast).this()
     }
 
@@ -569,7 +569,7 @@ private fun <S, R, O> PromiseCancelledBroadcast?.catchAll(
     semaphore: PromiseSemaphore? = null,
     requiredPromiseList: List<Promise<R>>? = null,
     optionalPromiseList: List<Promise<O>>? = null,
-    onRejected: KPromiseOnRejected.() -> Any?
+    onRejected: KPromiseOnRejected<S>.() -> Any?
 ): Promise<S> {
     return Promise.CatchAll(
         this,
@@ -600,8 +600,8 @@ private fun <S, R, O> PromiseCancelledBroadcast?.cancelAll(
 }
 
 private fun (KPromiseOnSettled.() -> Promise<*>?).toSettledListener() =
-    PromiseCancellableSettledListener { cancelledBroadcast ->
-        KPromiseOnSettled(cancelledBroadcast).this()
+    PromiseStatefulSettledListener { cancelledBroadcast ->
+        KPromiseOnSettled(cancelledBroadcast as PromiseState<Any?>).this()
     }
 
 private fun <S, R, O> PromiseCancelledBroadcast?.finallyAll(
@@ -703,8 +703,8 @@ fun <S, R, O> CoroutineScope.thenAll(
     requiredPromiseList: List<Promise<R>>,
     optionalPromiseList: List<Promise<O>>,
     semaphore: PromiseSemaphore? = null,
-    onFulfilled: KPromiseCompoundOnFulfilled<R, O>.() -> Any?
-) = coroutineContext[Job].ToBroadcast().thenAll<S, R, O>(
+    onFulfilled: KPromiseCompoundOnFulfilled<S, R, O>.() -> Any?
+) = coroutineContext[Job].ToBroadcast().thenAll(
     semaphore = semaphore,
     requiredPromiseList = requiredPromiseList,
     optionalPromiseList = optionalPromiseList,
@@ -715,8 +715,8 @@ fun <R, O> CoroutineScope.thenAll(
     requiredPromiseArray: Array<Promise<R>>,
     optionalPromiseArray: Array<Promise<O>>,
     semaphore: PromiseSemaphore? = null,
-    onFulfilled: KPromiseCompoundOnFulfilled<R, O>.() -> Unit
-) = thenAll<Unit, R, O>(
+    onFulfilled: KPromiseCompoundOnFulfilled<Unit, R, O>.() -> Unit
+) = thenAll(
     semaphore = semaphore,
     requiredPromiseList = requiredPromiseArray.asList(),
     optionalPromiseList = optionalPromiseArray.asList(),
@@ -726,8 +726,8 @@ fun <R, O> CoroutineScope.thenAll(
 fun <S, R> CoroutineScope.thenAll(
     requiredPromiseList: List<Promise<R>>,
     semaphore: PromiseSemaphore? = null,
-    onFulfilled: KPromiseCompoundOnFulfilled<R, Unit>.() -> Any?
-) = thenAll<S, R, Unit>(
+    onFulfilled: KPromiseCompoundOnFulfilled<S, R, Unit>.() -> Any?
+) = thenAll(
     semaphore = semaphore,
     requiredPromiseList = requiredPromiseList,
     optionalPromiseList = emptyList(),
@@ -737,8 +737,8 @@ fun <S, R> CoroutineScope.thenAll(
 fun <R> CoroutineScope.thenAll(
     requiredPromiseArray: Array<Promise<R>>,
     semaphore: PromiseSemaphore? = null,
-    onFulfilled: KPromiseCompoundOnFulfilled<R, Unit>.() -> Unit
-) = thenAll<Unit, R>(
+    onFulfilled: KPromiseCompoundOnFulfilled<Unit, R, Unit>.() -> Unit
+) = thenAll(
     semaphore = semaphore,
     requiredPromiseList = requiredPromiseArray.asList(),
     onFulfilled = onFulfilled
@@ -747,8 +747,8 @@ fun <R> CoroutineScope.thenAll(
 fun <S, O> CoroutineScope.thenAll(
     semaphore: PromiseSemaphore? = null,
     optionalPromiseList: List<Promise<O>>,
-    onFulfilled: KPromiseCompoundOnFulfilled<Unit, O>.() -> Any?
-) = thenAll<S, Unit, O>(
+    onFulfilled: KPromiseCompoundOnFulfilled<S, Unit, O>.() -> Any?
+) = thenAll(
     semaphore = semaphore,
     requiredPromiseList = emptyList(),
     optionalPromiseList = optionalPromiseList,
@@ -758,8 +758,8 @@ fun <S, O> CoroutineScope.thenAll(
 fun <O> CoroutineScope.thenAll(
     semaphore: PromiseSemaphore? = null,
     optionalPromiseArray: Array<Promise<O>>,
-    onFulfilled: KPromiseCompoundOnFulfilled<Unit, O>.() -> Unit
-) = thenAll<Unit, O>(
+    onFulfilled: KPromiseCompoundOnFulfilled<Unit, Unit, O>.() -> Unit
+) = thenAll(
     semaphore = semaphore,
     optionalPromiseList = optionalPromiseArray.asList(),
     onFulfilled = onFulfilled
@@ -769,8 +769,8 @@ fun <S, R, O> CoroutineScope.catchAll(
     requiredPromiseList: List<Promise<R>>,
     optionalPromiseList: List<Promise<O>>,
     semaphore: PromiseSemaphore? = null,
-    onRejected: KPromiseOnRejected.() -> Any?
-) = coroutineContext[Job].ToBroadcast().catchAll<S, R, O>(
+    onRejected: KPromiseOnRejected<S>.() -> Any?
+) = coroutineContext[Job].ToBroadcast().catchAll(
     semaphore = semaphore,
     requiredPromiseList = requiredPromiseList,
     optionalPromiseList = optionalPromiseList,
@@ -781,8 +781,8 @@ fun <R, O> CoroutineScope.catchAll(
     requiredPromiseArray: Array<Promise<R>>,
     optionalPromiseArray: Array<Promise<O>>,
     semaphore: PromiseSemaphore? = null,
-    onRejected: KPromiseOnRejected.() -> Unit
-) = catchAll<Unit, R, O>(
+    onRejected: KPromiseOnRejected<Unit>.() -> Unit
+) = catchAll(
     semaphore = semaphore,
     requiredPromiseList = requiredPromiseArray.asList(),
     optionalPromiseList = optionalPromiseArray.asList(),
@@ -792,7 +792,7 @@ fun <R, O> CoroutineScope.catchAll(
 fun <S, R> CoroutineScope.catchAll(
     requiredPromiseList: List<Promise<R>>,
     semaphore: PromiseSemaphore? = null,
-    onRejected: KPromiseOnRejected.() -> Any?
+    onRejected: KPromiseOnRejected<S>.() -> Any?
 ) = catchAll<S, R, Unit>(
     semaphore = semaphore,
     requiredPromiseList = requiredPromiseList,
@@ -803,8 +803,8 @@ fun <S, R> CoroutineScope.catchAll(
 fun <R> CoroutineScope.catchAll(
     requiredPromiseArray: Array<Promise<R>>,
     semaphore: PromiseSemaphore? = null,
-    onRejected: KPromiseOnRejected.() -> Unit
-) = catchAll<Unit, R>(
+    onRejected: KPromiseOnRejected<Unit>.() -> Unit
+) = catchAll(
     semaphore = semaphore,
     requiredPromiseList = requiredPromiseArray.asList(),
     onRejected = onRejected
@@ -813,7 +813,7 @@ fun <R> CoroutineScope.catchAll(
 fun <S, O> CoroutineScope.catchAll(
     semaphore: PromiseSemaphore? = null,
     optionalPromiseList: List<Promise<O>>,
-    onRejected: KPromiseOnRejected.() -> Any?
+    onRejected: KPromiseOnRejected<S>.() -> Any?
 ) = catchAll<S, Unit, O>(
     semaphore = semaphore,
     requiredPromiseList = emptyList(),
@@ -824,8 +824,8 @@ fun <S, O> CoroutineScope.catchAll(
 fun <O> CoroutineScope.catchAll(
     semaphore: PromiseSemaphore? = null,
     optionalPromiseArray: Array<Promise<O>>,
-    onRejected: KPromiseOnRejected.() -> Unit
-) = catchAll<Unit, O>(
+    onRejected: KPromiseOnRejected<Unit>.() -> Unit
+) = catchAll(
     semaphore = semaphore,
     optionalPromiseList = optionalPromiseArray.asList(),
     onRejected = onRejected
@@ -941,11 +941,11 @@ fun CoroutineScope.delay(d: Duration) = coroutineContext[Job].ToBroadcast().dela
 open class KPromiseJob<S>(
     private val resolver: PromiseResolver<S>,
     private val rejector: PromiseRejector,
-    private val cancelledBroadcast: PromiseCancelledBroadcast,
-) : KPromiseScope(cancelledBroadcast) {
+    private val state: PromiseState<S>,
+) : KPromiseScope<S>(state) {
     class KPromiseProcedure(
         job: KPromiseJob<Unit>,
-    ) : KPromiseJob<Unit>(job.resolver, job.rejector, job.cancelledBroadcast) {
+    ) : KPromiseJob<Unit>(job.resolver, job.rejector, job.state) {
         fun resolve() = resolve(Unit)
     }
 
@@ -954,30 +954,30 @@ open class KPromiseJob<S>(
     fun reject(reason: Throwable?) = rejector.Reject(reason)
 }
 
-private fun <T, S> (KPromiseOnFulfilled<T>.() -> Any?).toFulfilledListener() =
-    PromiseCancellableFulfilledListener<T, S> { value, cancelledBroadcast ->
+private fun <T, S> (KPromiseOnFulfilled<S, T>.() -> Any?).toFulfilledListener() =
+    PromiseStatefulFulfilledListener<T, S> { value, cancelledBroadcast ->
         KPromiseOnFulfilled(value, cancelledBroadcast).this()
     }
 
 fun <S, T> Promise<T>.then(
     semaphore: PromiseSemaphore? = null,
-    onFulfilled: KPromiseOnFulfilled<T>.() -> Any?
+    onFulfilled: KPromiseOnFulfilled<S, T>.() -> Any?
 ): Promise<S> {
     return Then(semaphore, onFulfilled.toFulfilledListener())
 }
 
-fun <T> Promise<T>.next(semaphore: PromiseSemaphore? = null, onFulfilled: KPromiseOnFulfilled<T>.() -> Unit) =
-    then<Unit, T>(semaphore = semaphore, onFulfilled = onFulfilled)
+fun <T> Promise<T>.next(semaphore: PromiseSemaphore? = null, onFulfilled: KPromiseOnFulfilled<Unit, T>.() -> Unit) =
+    then(semaphore = semaphore, onFulfilled = onFulfilled)
 
 fun <S, T> Promise<T>.catch(
     semaphore: PromiseSemaphore? = null,
-    onRejected: KPromiseOnRejected.() -> Any?
+    onRejected: KPromiseOnRejected<S>.() -> Any?
 ): Promise<S> {
     return Catch(semaphore, onRejected.toRejectedListener())
 }
 
-fun <T> Promise<T>.error(semaphore: PromiseSemaphore? = null, onRejected: KPromiseOnRejected.() -> Unit) =
-    catch<Unit, T>(semaphore = semaphore, onRejected = onRejected)
+fun <T> Promise<T>.error(semaphore: PromiseSemaphore? = null, onRejected: KPromiseOnRejected<Unit>.() -> Unit) =
+    catch(semaphore = semaphore, onRejected = onRejected)
 
 
 fun <T> Promise<T>.cancel(semaphore: PromiseSemaphore? = null, onCancelled: () -> Unit): Promise<Unit> {
@@ -985,8 +985,8 @@ fun <T> Promise<T>.cancel(semaphore: PromiseSemaphore? = null, onCancelled: () -
 }
 
 private fun (KPromiseOnSettled.() -> Any?).toSettledListenerUnit() =
-    PromiseCancellableSettledListener { cancelledBroadcast ->
-        KPromiseOnSettled(cancelledBroadcast).this() as? Promise<*>
+    PromiseStatefulSettledListener { cancelledBroadcast ->
+        KPromiseOnSettled(cancelledBroadcast as PromiseState<Any?>).this() as? Promise<*>
     }
 
 fun <T> Promise<T>.finally(
