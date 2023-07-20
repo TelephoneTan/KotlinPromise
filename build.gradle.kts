@@ -11,6 +11,10 @@ plugins {
 group = "org.example"
 version = "1.0-SNAPSHOT"
 
+java {
+    withSourcesJar()
+}
+
 publishing {
     repositories {
         val p = Properties().apply {
@@ -31,7 +35,7 @@ publishing {
         create<MavenPublication>("kp") {
             groupId = "pub.telephone"
             artifactId = "kotlin-promise"
-            version = "0.7.0"
+            version = "0.7.1"
             from(components["java"])
         }
     }
