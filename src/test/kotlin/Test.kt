@@ -1,4 +1,6 @@
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.seconds
 
@@ -36,5 +38,28 @@ class Test {
         }.finally {
             println("end")
         }.Await()
+    }
+
+    @Test
+    fun testJob() {
+        println("runBlocking 开始")
+        runBlocking {
+            println("延时之前")
+            delay(5.seconds).next {
+                println("hello, world")
+            }.cancel {
+                println("外部检测到取消")
+                if (!isActive) {
+                    println("取消时取消")
+                }
+            }.cancel {
+                println("外部检测到取消2")
+                if (!isActive) {
+                    println("取消时取消2")
+                }
+            }
+        }
+        println("runBlocking 结束")
+        Thread.sleep(3500)
     }
 }

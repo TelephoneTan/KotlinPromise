@@ -1,7 +1,4 @@
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.DisposableHandle
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.Runnable
+import kotlinx.coroutines.*
 import pub.telephone.javapromise.async.Async
 import pub.telephone.javapromise.async.promise.*
 import pub.telephone.javapromise.async.task.once.OnceTask
@@ -353,18 +350,25 @@ class KPromiseOnSettled(
     state: PromiseState<Any?>,
 ) : KPromiseScope<Any?>(state)
 
+private data class jobKey(val Job: CompletableJob, val Key: DisposableHandle)
+
 fun Job?.ToBroadcast(): PromiseCancelledBroadcast? = this?.let { parentJob ->
     object : PromiseCancelledBroadcast() {
         override fun Listen(r: Runnable?): Any? {
             return r?.let { runnable ->
-                parentJob.invokeOnCompletion {
+                val job = Job(parentJob)
+                val k = parentJob.invokeOnCompletion {
                     runnable.run()
                 }
+                jobKey(job, k)
             }
         }
 
         override fun UnListen(key: Any?) {
-            (key as? DisposableHandle)?.dispose()
+            (key as? jobKey)?.apply {
+                Key.dispose()
+                Job.complete()
+            }
         }
     }
 }
