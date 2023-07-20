@@ -31,7 +31,7 @@ publishing {
         create<MavenPublication>("kp") {
             groupId = "pub.telephone"
             artifactId = "kotlin-promise"
-            version = "0.6.0"
+            version = "0.7.0"
             from(components["java"])
         }
     }
